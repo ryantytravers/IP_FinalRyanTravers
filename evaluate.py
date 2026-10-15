@@ -68,18 +68,8 @@ test_data = [
     ("GeneralElectric_Baker_2016", "Termination", "Upon expiration of the cure period without resolution, the aggrieved entity reserves the right to conclude all contractual engagements and enforce immediate settlement of outstanding proprietary obligations.")
 ]
 
-train_records = []
-for cid, cat, txt in train_data:
-    for i in range(30):
-        train_records.append((f"{cid}_train_{i}", cat, txt))
-
-test_records = []
-for cid, cat, txt in test_data:
-    for i in range(14):
-        test_records.append((f"{cid}_test_{i}", cat, txt))
-
-train_df = pd.DataFrame(train_records, columns=["contract_name", "category", "text"])
-test_df = pd.DataFrame(test_records, columns=["contract_name", "category", "text"])
+train_df = pd.DataFrame(train_data, columns=["contract_name", "category", "text"])
+test_df = pd.DataFrame(test_data, columns=["contract_name", "category", "text"])
 
 X_train = train_df["text"].values
 y_train = train_df["category"].values
@@ -88,12 +78,8 @@ y_test = test_df["category"].values
 
 def keyword_baseline_predict(text):
     t = text.lower()
-    scores = {
-        "Governing Law": 0,
-        "Confidentiality": 0,
-        "Termination": 0,
-        "Non-Compete": 0
-    }
+    scores = {cat: 0 for cat in CATEGORIES}
+
     gov_words = ["governed by", "laws of", "jurisdiction", "conflicts of law", "courts of"]
     conf_words = ["confidential", "proprietary", "trade secret", "non-disclosure", "disclose"]
     term_words = ["terminate", "termination", "cure", "event of default", "cancel", "expiration"]
@@ -126,9 +112,9 @@ X_train_vec = vectorizer.fit_transform(X_train)
 X_test_vec = vectorizer.transform(X_test)
 
 models = {
-    "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
     "Multinomial Naive Bayes": MultinomialNB(),
-    "Linear SVM": LinearSVC(random_state=42)
+    "Linear SVM": LinearSVC(random_state=42),
+    "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42)
 }
 
 results = [
@@ -146,12 +132,11 @@ for name, clf in models.items():
 
 results_df = pd.DataFrame(results)
 print(results_df.to_string(index=False))
+
 print("\n--- EMPIRICAL FAILURE CASES ---")
 lr_preds = trained_clfs["Logistic Regression"][1]
-seen_failures = set()
 for i in range(len(y_test)):
-    if y_test[i] != lr_preds[i] and X_test[i] not in seen_failures:
-        seen_failures.add(X_test[i])
-        print(f"True Label:      {y_test[i]}")
-        print(f"Model Predicted: {lr_preds[i]}")
-        print(f"Clause Text:     \"{X_test[i]}\"\n")
+    if y_test[i] != lr_preds[i]:
+        print(f"True Label:       {y_test[i]}")
+        print(f"Model Predicted:  {lr_preds[i]}")
+        print(f"Clause Text:      \"{X_test[i]}\"\n")
